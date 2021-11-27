@@ -24,7 +24,6 @@ public class App {
         PcapNetworkInterface device = getNetworkDevice();
         System.out.println("You chose: " + device);
 
-        // skuska gitu
         // New code below here
         if (device == null) {
             System.out.println("No device chosen.");
