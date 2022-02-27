@@ -10,3 +10,4 @@ Ak nemozno dostat sa k devicom na sniff
 Dependencies
 - pre windows winpcap, pre linux libpcap
 - super-user privileges
+test
