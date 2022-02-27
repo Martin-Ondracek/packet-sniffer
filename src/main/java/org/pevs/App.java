@@ -1,9 +1,13 @@
 package org.pevs;
 
 import java.io.IOException;
+import java.net.Inet4Address;
 
 import org.pcap4j.core.*;
 import org.pcap4j.core.PcapNetworkInterface.PromiscuousMode;
+import org.pcap4j.packet.EthernetPacket;
+
+import org.pcap4j.packet.IpV4Packet;
 import org.pcap4j.packet.Packet;
 import org.pcap4j.util.NifSelector;
 
@@ -47,6 +51,16 @@ public class App {
                 // Override the default gotPacket() function and process packet
                 System.out.println(handle.getTimestamp());
                 System.out.println(packet);
+                try{
+
+                    Inet4Address inet4Address = packet.get(IpV4Packet.class).getHeader().getSrcAddr();
+                    //EthernetPacket ethernetPacket = packet.get(EthernetPacket.class);
+                    //EthernetPacket.EthernetHeader ethernetHeader = ethernetPacket.getHeader();
+                    System.out.println(inet4Address);
+                }catch (Exception e){
+                    e.printStackTrace();
+                }
+
             }
         };
 
