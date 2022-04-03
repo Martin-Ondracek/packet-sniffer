@@ -1,0 +1,11 @@
+Do buducna:
+
+pozriet moznosti tcpdump (vyskusaj si na linuxe)
+
+do programu skus spravit:
+
+-skusit moznosti filtrovania (napr iba UDP alebo TCP alebo DNS), IP dst/src adresy, portu, atd.
+-prototyp multithreading
+-kniznica pre logging (log4j, alebo ina)
+- konzolove ovladanie
+- zistit preco nejde http rozkodovat niektoru
