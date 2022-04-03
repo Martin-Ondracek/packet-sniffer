@@ -10,3 +10,6 @@ Ak nemozno dostat sa k devicom na sniff
 Dependencies
 - pre windows winpcap, pre linux libpcap
 - super-user privileges
+
+Filter
+- https://www.ibm.com/docs/en/qsip/7.4?topic=queries-berkeley-packet-filters
