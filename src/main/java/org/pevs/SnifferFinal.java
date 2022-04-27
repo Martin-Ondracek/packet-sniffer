@@ -18,7 +18,7 @@ import java.util.concurrent.Callable;
 
 public class SnifferFinal implements Callable<Integer> {
 
-    @Option(names = {"-f", "--filter"}, description = "Set desired BPF filter")
+    @Option(names = {"-f", "--filter"}, description = "Set desired BPF filter, please use '-' instead of space")
     private String filter;
 
     @Option(names = {"-w", "--write"}, description = "Write captured packets to out.pcap file")
@@ -26,6 +26,12 @@ public class SnifferFinal implements Callable<Integer> {
 
     @Option(names = {"-d", "--decode"}, description = "Output HTTP packets with decoded payload")
     private boolean decode;
+
+    @Option(names = {"-c", "--count"}, description = "Number of packets to be captured")
+    private String count;
+
+    @Option(names = { "-h", "--help" }, usageHelp = true, description = "Display a help message")
+    private boolean helpRequested;
 
     static short port_num = 80;
     static TcpPort httpPort = new TcpPort(port_num,"HTTP");
@@ -58,13 +64,9 @@ public class SnifferFinal implements Callable<Integer> {
         handle = device.openLive(snapshotLength, PcapNetworkInterface.PromiscuousMode.PROMISCUOUS, readTimeout);
         final PcapDumper dumper = write ? handle.dumpOpen("out.pcap") : null;
 
-        //Open dump if required
-//        if (write){
-//            dumper = handle.dumpOpen("out.pcap");
-//        }
-
         //Set filter if applied
         if(filter != null){
+            filter = filter.replace('-',' ');
             try {
                 handle.setFilter(filter, BpfProgram.BpfCompileMode.OPTIMIZE);
             }catch (PcapNativeException e){
@@ -84,7 +86,7 @@ public class SnifferFinal implements Callable<Integer> {
                         + ipV4Header.getSrcAddr() + " > "
                         + ipV4Header.getDstAddr() + " : "
                         + ipV4Header.getProtocol() + " length: "
-                        + ipV4Header.getTotalLength()
+                        + packet.length()
                     );
 
                 if (write && dumper != null) {
@@ -108,26 +110,28 @@ public class SnifferFinal implements Callable<Integer> {
             }
         };
 
-        // thread to break loop
-        Thread t = new Thread(() -> {
-            BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
-            try {
-                in.readLine();
-                in.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            try {
-                handle.breakLoop();
-            } catch (NotOpenException e) {
-                e.printStackTrace();
-            }
-        });
-        t.start();
+        // thread to break loop if no count specified
+        if(count == null){
+            Thread t = new Thread(() -> {
+                BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
+                try {
+                    in.readLine();
+                    in.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                try {
+                    handle.breakLoop();
+                } catch (NotOpenException e) {
+                    e.printStackTrace();
+                }
+            });
+            t.start();
+        }
 
         // Tell the handle to loop using the listener we created
         try {
-            int maxPackets = -1;
+            int maxPackets = (count == null) ? -1 : Integer.parseInt(count);
             handle.loop(maxPackets, listener);
         } catch (InterruptedException e) {
             System.out.println("Packet capturing stopped");
