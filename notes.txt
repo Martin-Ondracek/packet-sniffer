@@ -13,3 +13,6 @@ Dependencies
 
 Filter
 - https://www.ibm.com/docs/en/qsip/7.4?topic=queries-berkeley-packet-filters
+
+SnapLength
+- https://www.rampfesthudson.com/what-is-snapshot-length-in-pcap/

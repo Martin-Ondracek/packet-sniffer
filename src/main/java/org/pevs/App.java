@@ -3,23 +3,17 @@ package org.pevs;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.UnsupportedEncodingException;
-import java.net.Inet4Address;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.nio.charset.StandardCharsets;
-import java.util.Scanner;
 
 import org.pcap4j.core.*;
 import org.pcap4j.core.PcapNetworkInterface.PromiscuousMode;
 import org.pcap4j.packet.*;
-
-import org.pcap4j.packet.namednumber.IpNumber;
 import org.pcap4j.packet.namednumber.TcpPort;
-import org.pcap4j.util.Inet4NetworkAddress;
 import org.pcap4j.util.NifSelector;
 
 public class App {
+
+    static short port_num = 80;
+    static TcpPort httpPort = new TcpPort(port_num,"HTTP");
 
     static PcapNetworkInterface getNetworkDevice() {
         PcapNetworkInterface device = null;
@@ -33,58 +27,50 @@ public class App {
 
 
     public static void main(String[] args) throws PcapNativeException, NotOpenException {
-        // The code we had before
-//        NifSelector nifSelector = new NifSelector();
+        //Select network device to capture on
         PcapNetworkInterface device = getNetworkDevice();
         System.out.println("You chose: " + device);
 
-        // New code below here
+        // If no device - exit
         if (device == null) {
             System.out.println("No device chosen.");
             System.exit(1);
         }
 
         // Open the device and get a handle
-        int snapshotLength = 65536; // in bytes //dlzka paketu v bytoch max
+        int snapshotLength = 65536; // in bytes //dlzka paketu v bytoch max //frame max length
         int readTimeout = 500; // in milliseconds
         final PcapHandle handle;
         handle = device.openLive(snapshotLength, PromiscuousMode.PROMISCUOUS, readTimeout);
+        PcapDumper dumper = handle.dumpOpen("out.pcap");
 
-        // filter iba na port 80
-//        BpfFilterBuilder bpf = new BpfFilterBuilder();
-//        String filter = bpf.setFilter();
-
+        //Set filter
 //        String filter = "port 80";
-//        String filter = "dst host 239.255.255.250 || src host 192.168.1.6";//"dst host 192.168.1.6 || src host 192.168.1.6";//"tcp port 80";
 //        handle.setFilter(filter, BpfProgram.BpfCompileMode.OPTIMIZE);
 
         // Create a listener that defines what to do with the received packets
         PacketListener listener = new PacketListener() {
             @Override
             public void gotPacket(Packet packet) {
-                // Override the default gotPacket() function and process packet
-//                IpV4Packet.IpV4Header ipV4Header = packet.get(IpV4Packet.class).getHeader();
-//                System.out.println(handle.getTimestamp() + " " + ipV4Header.getSrcAddr() + " > " + ipV4Header.getDstAddr() +" : " + ipV4Header.getProtocol() + ipV4Header.getTotalLength());
-//                IpV4Packet.IpV4Header ipV4Header = packet.get(IpV4Packet.class).getHeader();
-                //System.out.println(ipV4Header.getSrcAddr() + " > " + ipV4Header.getDstAddr() +" : " + ipV4Header.getProtocol() + ipV4Header.getTotalLength());
-                //System.out.println("cely packet" + packet);
-//
 
-                IpV4Packet.IpV4Header ipV4Header = packet.get(IpV4Packet.class).getHeader();
-                System.out.println(handle.getTimestamp() + " "
-                        + ipV4Header.getSrcAddr() + " > "
-                        + ipV4Header.getDstAddr() + " : "
-                        + ipV4Header.getProtocol() + " lenght: "
-                        + ipV4Header.getTotalLength()
-                    );
+//                IpV4Packet.IpV4Header ipV4Header = packet.get(IpV4Packet.class).getHeader();
+//                System.out.println(handle.getTimestamp() + " "
+//                        + ipV4Header.getSrcAddr() + " > "
+//                        + ipV4Header.getDstAddr() + " : "
+//                        + ipV4Header.getProtocol() + " lenght: "
+//                        + ipV4Header.getTotalLength()
+//                    );
 
-                //System.out.println(packet);
-//                Packet.Header header =packet.getHeader();
-//                short port_num = 80;
-//                TcpPort httpPort = new TcpPort(port_num,"HTTP");
-//                System.out.println(packet.get(TcpPacket.class).getHeader().getDstPort().equals(httpPort)
-//                + "\n " + httpPort
-//                + "\n " + packet.get(TcpPacket.class).getHeader().getDstPort());
+                System.out.println(packet.get(TcpPacket.class).getHeader().getDstPort().equals(httpPort)
+                + "\n " + httpPort
+                + "\n " + packet.get(TcpPacket.class).getHeader().getDstPort());
+
+
+                try {
+                    dumper.dump(packet, handle.getTimestamp());
+                }catch (NotOpenException e){
+                    e.printStackTrace();
+                }
 
 
 //                if(packet.get(TcpPacket.class).getHeader().getDstPort().equals(httpPort) ||
@@ -118,20 +104,17 @@ public class App {
         });
         t.start();
 
+
         // Tell the handle to loop using the listener we created
         try {
             int maxPackets = -1;
             handle.loop(maxPackets, listener);
         } catch (InterruptedException e) {
             System.out.println("Zachytavanie zastavene");
-            e.printStackTrace();
         }
 
-
-        PcapStat stats = handle.getStats();
-        System.out.println(stats.getNumPacketsReceived() + " " + stats.getNumPacketsDropped() + " " + stats.getNumPacketsCaptured());
-
         // Cleanup when complete
+        dumper.close();
         handle.close();
     }
 
