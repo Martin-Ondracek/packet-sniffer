@@ -133,7 +133,7 @@ public class SnifferFinal implements Callable<Integer> {
         // Tell the handle to loop using the listener or dumper
         try {
             int maxPackets = (count == null) ? -1 : Integer.parseInt(count);
-            if ((!output && write)) {
+            if ((!output && write && dumper != null)) {
                 handle.loop(maxPackets, dumper);
             } else {
                 handle.loop(maxPackets, listener);
