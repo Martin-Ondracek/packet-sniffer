@@ -2,7 +2,6 @@ package org.pevs;
 
 import org.pcap4j.core.*;
 import org.pcap4j.packet.IpV4Packet;
-import org.pcap4j.packet.Packet;
 import org.pcap4j.packet.TcpPacket;
 import org.pcap4j.packet.namednumber.TcpPort;
 import org.pcap4j.util.NifSelector;
@@ -23,6 +22,9 @@ public class SnifferFinal implements Callable<Integer> {
 
     @Option(names = {"-w", "--write"}, description = "Write captured packets to out.pcap file")
     private boolean write;
+
+    @Option(names = {"-o", "--output"}, description = "Display captured packets")
+    private boolean output;
 
     @Option(names = {"-d", "--decode"}, description = "Output HTTP packets with decoded payload")
     private boolean decode;
@@ -77,10 +79,9 @@ public class SnifferFinal implements Callable<Integer> {
         }
 
         // Create a listener that defines what to do with the received packets
-        PacketListener listener = new PacketListener() {
-            @Override
-            public void gotPacket(Packet packet) {
+        PacketListener listener = packet -> {
 
+            if(output){
                 IpV4Packet.IpV4Header ipV4Header = packet.get(IpV4Packet.class).getHeader();
                 System.out.println(handle.getTimestamp() + " "
                         + ipV4Header.getSrcAddr() + " > "
@@ -88,26 +89,26 @@ public class SnifferFinal implements Callable<Integer> {
                         + ipV4Header.getProtocol() + " length: "
                         + packet.length()
                     );
-
-                if (write && dumper != null) {
-                    try {
-                        dumper.dump(packet, handle.getTimestamp());
-                    } catch (NotOpenException e) {
-                        e.printStackTrace();
-                    }
-                }
-
-                if (decode){
-                    if(packet.get(TcpPacket.class).getHeader().getDstPort().equals(httpPort)
-                        || packet.get(TcpPacket.class).getHeader().getSrcPort().equals(httpPort)){
-
-                        byte[] data = packet.get(TcpPacket.class).getPayload().getRawData();
-                        String decoded = new String(data, StandardCharsets.UTF_8);
-                        System.out.println(decoded);
-                    }
-               }
-
             }
+
+            if (write && dumper != null && output) {
+                try {
+                    dumper.dump(packet, handle.getTimestamp());
+                } catch (NotOpenException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            if (decode){
+                if(packet.get(TcpPacket.class).getHeader().getDstPort().equals(httpPort)
+                    || packet.get(TcpPacket.class).getHeader().getSrcPort().equals(httpPort)){
+
+                    byte[] data = packet.get(TcpPacket.class).getPayload().getRawData();
+                    String decoded = new String(data, StandardCharsets.UTF_8);
+                    System.out.println(decoded);
+                }
+           }
+
         };
 
         // thread to break loop if no count specified
@@ -129,12 +130,17 @@ public class SnifferFinal implements Callable<Integer> {
             t.start();
         }
 
-        // Tell the handle to loop using the listener we created
+        // Tell the handle to loop using the listener or dumper
         try {
             int maxPackets = (count == null) ? -1 : Integer.parseInt(count);
-            handle.loop(maxPackets, listener);
+            if ((!output && write)) {
+                handle.loop(maxPackets, dumper);
+            } else {
+                handle.loop(maxPackets, listener);
+            }
+
         } catch (InterruptedException e) {
-            System.out.println("Packet capturing stopped");
+            System.out.println("Packet capturing finished");
         }
 
         // Cleanup when complete
