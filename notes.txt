@@ -16,3 +16,11 @@ Filter
 
 SnapLength
 - https://www.rampfesthudson.com/what-is-snapshot-length-in-pcap/
+
+PicoCLI
+- https://picocli.info/
+
+Pcap4J
+- https://github.com/kaitoy/pcap4j
+- https://javadoc.io/doc/org.pcap4j/pcap4j/latest/index.html
+- https://javadoc.io/doc/org.pcap4j/pcap4j/1.7.7/overview-summary.html
