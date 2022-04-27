@@ -1,6 +1,8 @@
 package org.pevs;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.Inet4Address;
 import java.net.InetAddress;
@@ -52,9 +54,9 @@ public class App {
 //        BpfFilterBuilder bpf = new BpfFilterBuilder();
 //        String filter = bpf.setFilter();
 
-        String filter = "port 80";
+//        String filter = "port 80";
 //        String filter = "dst host 239.255.255.250 || src host 192.168.1.6";//"dst host 192.168.1.6 || src host 192.168.1.6";//"tcp port 80";
-        handle.setFilter(filter, BpfProgram.BpfCompileMode.OPTIMIZE);
+//        handle.setFilter(filter, BpfProgram.BpfCompileMode.OPTIMIZE);
 
         // Create a listener that defines what to do with the received packets
         PacketListener listener = new PacketListener() {
@@ -78,38 +80,56 @@ public class App {
 
                 //System.out.println(packet);
 //                Packet.Header header =packet.getHeader();
-                short port_num = 80;
-                TcpPort httpPort = new TcpPort(port_num,"HTTP");
+//                short port_num = 80;
+//                TcpPort httpPort = new TcpPort(port_num,"HTTP");
 //                System.out.println(packet.get(TcpPacket.class).getHeader().getDstPort().equals(httpPort)
 //                + "\n " + httpPort
 //                + "\n " + packet.get(TcpPacket.class).getHeader().getDstPort());
 
 
-                if(packet.get(TcpPacket.class).getHeader().getDstPort().equals(httpPort) ||
-                        packet.get(TcpPacket.class).getHeader().getSrcPort().equals(httpPort)){
-
-                    //packet.get(IpV4Packet.class).getHeader().get
-                    //byte[] data = packet.get(IpV4Packet.class).getPayload().getRawData();
-                    byte[] data = packet.get(TcpPacket.class).getPayload().getRawData();
-                    String decoded = new String(data, StandardCharsets.UTF_8);
-                    System.out.println(decoded);
-                }
+//                if(packet.get(TcpPacket.class).getHeader().getDstPort().equals(httpPort) ||
+//                        packet.get(TcpPacket.class).getHeader().getSrcPort().equals(httpPort)){
+//
+//                    //packet.get(IpV4Packet.class).getHeader().get
+//                    //byte[] data = packet.get(IpV4Packet.class).getPayload().getRawData();
+//                    byte[] data = packet.get(TcpPacket.class).getPayload().getRawData();
+//                    String decoded = new String(data, StandardCharsets.UTF_8);
+//                    System.out.println(decoded);
+//                }
 
 
             }
         };
+
+        // thread to break loop
+        Thread t = new Thread(() -> {
+            BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
+            try {
+                in.readLine();
+                in.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            try {
+                handle.breakLoop();
+            } catch (NotOpenException e) {
+                e.printStackTrace();
+            }
+        });
+        t.start();
 
         // Tell the handle to loop using the listener we created
         try {
             int maxPackets = -1;
             handle.loop(maxPackets, listener);
         } catch (InterruptedException e) {
+            System.out.println("Zachytavanie zastavene");
             e.printStackTrace();
         }
 
-//        PcapStat stats = handle.getStats();
 
-//        System.out.println(stats.getNumPacketsCaptured());
+        PcapStat stats = handle.getStats();
+        System.out.println(stats.getNumPacketsReceived() + " " + stats.getNumPacketsDropped() + " " + stats.getNumPacketsCaptured());
 
         // Cleanup when complete
         handle.close();
