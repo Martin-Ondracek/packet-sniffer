@@ -25,6 +25,9 @@ Pcap4J
 - https://javadoc.io/doc/org.pcap4j/pcap4j/latest/index.html
 - https://javadoc.io/doc/org.pcap4j/pcap4j/1.7.7/overview-summary.html
 
+SLF4J
+- https://www.slf4j.org/manual.html#swapping
+
 
 Issues
 - handle.breakLoop()

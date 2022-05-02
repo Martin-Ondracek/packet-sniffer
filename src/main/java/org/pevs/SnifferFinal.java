@@ -17,6 +17,8 @@ import java.util.concurrent.Callable;
 
 public class SnifferFinal implements Callable<Integer> {
 
+    final Logger logger = new Logger();
+
     @Option(names = {"-f", "--filter"}, description = "Set desired BPF filter, please use '-' instead of space")
     private String filter;
 
@@ -49,13 +51,32 @@ public class SnifferFinal implements Callable<Integer> {
     }
 
     public Integer call() throws PcapNativeException, NotOpenException {
+        logger.logInfo("Starting packet sniffer with options:" +
+                "\nFilter: " + filter +
+                "\nWrite: " + write +
+                "\nOutput: " + output +
+                "\nDecode: " + decode +
+                "\nCount: " + count);
+
+        if (count != null){
+            try {
+                Integer.parseInt(count);
+            }catch (NumberFormatException e){
+                System.out.println("Wrong count number.");
+                logger.logError("Wrong count number inserted: " + count + " - exit");
+                System.exit(1);
+            }
+        }
+
         //Select network device to capture on
         PcapNetworkInterface device = getNetworkDevice();
         System.out.println("You chose: " + device);
+        logger.logInfo("Device chosen " + device);
 
         // If no device - exit
         if (device == null) {
             System.out.println("No device chosen.");
+            logger.logError("No device chosen - exit.");
             System.exit(1);
         }
 
@@ -64,7 +85,9 @@ public class SnifferFinal implements Callable<Integer> {
         int readTimeout = 500; // in milliseconds
         final PcapHandle handle;
         handle = device.openLive(snapshotLength, PcapNetworkInterface.PromiscuousMode.PROMISCUOUS, readTimeout);
+        logger.logInfo("Handle set up: " + handle);
         final PcapDumper dumper = write ? handle.dumpOpen("out.pcap") : null;
+        logger.logInfo("Dumper set: " + (dumper == null));
 
         //Set filter if applied
         if(filter != null){
@@ -73,10 +96,12 @@ public class SnifferFinal implements Callable<Integer> {
                 handle.setFilter(filter, BpfProgram.BpfCompileMode.OPTIMIZE);
             }catch (PcapNativeException e){
                 System.out.println("Unknown filter");
+                logger.logError("Unknown filter" + filter + " - exit.");
                 System.exit(1);
             }
-
+            logger.logInfo("Filter set: "+ handle.getFilteringExpression());
         }
+
 
         // Create a listener that defines what to do with the received packets
         PacketListener listener = packet -> {
@@ -118,13 +143,17 @@ public class SnifferFinal implements Callable<Integer> {
                 try {
                     in.readLine();
                     in.close();
+                    logger.logInfo("Instructed to break loop.");
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
                 try {
                     handle.breakLoop();
+                    logger.logInfo("Broke loop.");
                 } catch (NotOpenException e) {
                     e.printStackTrace();
+                    logger.logWarning("Trying to close not opened handle");
+                    logger.logWarning(handle.toString());
                 }
             });
             t.start();
@@ -134,20 +163,25 @@ public class SnifferFinal implements Callable<Integer> {
         try {
             int maxPackets = (count == null) ? -1 : Integer.parseInt(count);
             if ((!output && write && dumper != null)) {
+                logger.logInfo("Starting dumper loop.");
                 handle.loop(maxPackets, dumper);
             } else {
+                logger.logInfo("Starting listener loop.");
                 handle.loop(maxPackets, listener);
             }
 
         } catch (InterruptedException e) {
+            logger.logInfo("Packet capturing finished.");
             System.out.println("Packet capturing finished");
         }
 
         // Cleanup when complete
         if (write && dumper != null){
             dumper.close();
+            logger.logInfo("Dumper closed.");
         }
         handle.close();
+        logger.logInfo("Handle closed.");
 
         return 0;
     }
