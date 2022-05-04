@@ -25,8 +25,11 @@ public class SnifferFinal implements Callable<Integer> {
     @Option(names = {"-w", "--write"}, description = "Write captured packets to out.pcap file")
     private boolean write;
 
-    @Option(names = {"-o", "--output"}, description = "Display captured packets")
+    @Option(names = {"-o", "--output"}, description = "Display short version of captured packets")
     private boolean output;
+
+    @Option(names = {"-p", "--packet"}, description = "Display all information about captured packets")
+    private boolean paketFull;
 
     @Option(names = {"-d", "--decode"}, description = "Output HTTP packets with decoded payload")
     private boolean decode;
@@ -81,8 +84,8 @@ public class SnifferFinal implements Callable<Integer> {
         }
 
         // Open the device and get a handle
-        int snapshotLength = 65536; //frame max length in bytes
-        int readTimeout = 500; // in milliseconds
+        int snapshotLength = 65536;
+        int readTimeout = 500;
         final PcapHandle handle;
         handle = device.openLive(snapshotLength, PcapNetworkInterface.PromiscuousMode.PROMISCUOUS, readTimeout);
         logger.logInfo("Handle set up: " + handle);
@@ -116,7 +119,13 @@ public class SnifferFinal implements Callable<Integer> {
                     );
             }
 
-            if (write && dumper != null && output) {
+            if(paketFull){
+                System.out.println(packet);
+            }
+
+
+
+            if (write && dumper != null && (output || paketFull) ) {
                 try {
                     dumper.dump(packet, handle.getTimestamp());
                 } catch (NotOpenException e) {
@@ -145,14 +154,15 @@ public class SnifferFinal implements Callable<Integer> {
                     in.close();
                     logger.logInfo("Instructed to break loop.");
                 } catch (IOException e) {
+                    logger.logWarning(e.toString());
                     e.printStackTrace();
                 }
                 try {
                     handle.breakLoop();
                     logger.logInfo("Broke loop.");
                 } catch (NotOpenException e) {
-                    e.printStackTrace();
                     logger.logWarning("Trying to close not opened handle");
+                    logger.logWarning(e.toString());
                     logger.logWarning(handle.toString());
                 }
             });
@@ -162,7 +172,7 @@ public class SnifferFinal implements Callable<Integer> {
         // Tell the handle to loop using the listener or dumper
         try {
             int maxPackets = (count == null) ? -1 : Integer.parseInt(count);
-            if ((!output && write && dumper != null)) {
+            if ((!output && !paketFull && write && dumper != null)) {
                 logger.logInfo("Starting dumper loop.");
                 handle.loop(maxPackets, dumper);
             } else {
