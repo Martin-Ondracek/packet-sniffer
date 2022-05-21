@@ -2,7 +2,6 @@ package org.pevs;
 
 import org.pcap4j.core.*;
 import org.pcap4j.packet.*;
-import org.pcap4j.packet.namednumber.EtherType;
 import org.pcap4j.packet.namednumber.TcpPort;
 import org.pcap4j.util.NifSelector;
 import picocli.CommandLine;
@@ -16,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class SnifferFinal implements Callable<Integer> {
 
@@ -55,7 +55,7 @@ public class SnifferFinal implements Callable<Integer> {
         return device;
     }
 
-    public Integer call() throws PcapNativeException, NotOpenException {
+    public Integer call() throws PcapNativeException, NotOpenException, InterruptedException {
         logger.logInfo("Starting packet sniffer with options:" +
                 "\nFilter: " + filter +
                 "\nWrite: " + write +
@@ -92,7 +92,7 @@ public class SnifferFinal implements Callable<Integer> {
         handle = device.openLive(snapshotLength, PcapNetworkInterface.PromiscuousMode.PROMISCUOUS, readTimeout);
         logger.logInfo("Handle set up: " + handle);
         final PcapDumper dumper = write ? handle.dumpOpen("out.pcap") : null;
-        logger.logInfo("Dumper set: " + (dumper == null));
+        logger.logInfo("Dumper set: " + !(dumper == null));
 
         //Set filter if applied
         if(filter != null){
@@ -153,7 +153,7 @@ public class SnifferFinal implements Callable<Integer> {
                 try {
                     dumper.dump(packet, handle.getTimestamp());
                 } catch (NotOpenException e) {
-                    e.printStackTrace();
+                    logger.logWarning("Dumper status " + dumper);
                 }
             }
 
@@ -193,18 +193,16 @@ public class SnifferFinal implements Callable<Integer> {
             t.start();
         }
 
+        ExecutorService pool = Executors.newCachedThreadPool();
         // Tell the handle to loop using the listener or dumper
         try {
             int maxPackets = (count == null) ? -1 : Integer.parseInt(count);
-            // Executor service because of multiple conditions in gotPacket method
-            ExecutorService pool = Executors.newCachedThreadPool();
             if ((!output && !paketFull && write && dumper != null)) {
                 logger.logInfo("Starting dumper loop.");
                 handle.loop(maxPackets, dumper);
             } else {
                 logger.logInfo("Starting listener loop.");
                 handle.loop(maxPackets, listener, pool);
-                pool.shutdown();
             }
 
         } catch (InterruptedException e) {
@@ -214,6 +212,7 @@ public class SnifferFinal implements Callable<Integer> {
 
         // Cleanup when complete
         if (write && dumper != null){
+            pool.awaitTermination(10, TimeUnit.SECONDS);
             dumper.close();
             logger.logInfo("Dumper closed.");
         }
