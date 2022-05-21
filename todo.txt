@@ -1,3 +1,0 @@
-do programu skus spravit:
-
--kniznica pre logging (log4j, alebo ina)

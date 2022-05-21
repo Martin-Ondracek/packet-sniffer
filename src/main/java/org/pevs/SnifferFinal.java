@@ -1,8 +1,8 @@
 package org.pevs;
 
 import org.pcap4j.core.*;
-import org.pcap4j.packet.IpV4Packet;
-import org.pcap4j.packet.TcpPacket;
+import org.pcap4j.packet.*;
+import org.pcap4j.packet.namednumber.EtherType;
 import org.pcap4j.packet.namednumber.TcpPort;
 import org.pcap4j.util.NifSelector;
 import picocli.CommandLine;
@@ -14,6 +14,8 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class SnifferFinal implements Callable<Integer> {
 
@@ -110,13 +112,35 @@ public class SnifferFinal implements Callable<Integer> {
         PacketListener listener = packet -> {
 
             if(output){
-                IpV4Packet.IpV4Header ipV4Header = packet.get(IpV4Packet.class).getHeader();
-                System.out.println(handle.getTimestamp() + " "
-                        + ipV4Header.getSrcAddr() + " > "
-                        + ipV4Header.getDstAddr() + " : "
-                        + ipV4Header.getProtocol() + " length: "
-                        + packet.length()
+                EthernetPacket.EthernetHeader ethernetHeader = packet.get(EthernetPacket.class).getHeader();
+
+                if(packet.contains(IpV4Packet.class)){
+                    IpV4Packet.IpV4Header ipV4Header = packet.get(IpV4Packet.class).getHeader();
+                    System.out.println(handle.getTimestamp() + " Type " + ethernetHeader.getType() + " "
+                            + ipV4Header.getSrcAddr() + " > "
+                            + ipV4Header.getDstAddr() + " : "
+                            + ipV4Header.getProtocol() + " length: "
+                            + packet.length()
                     );
+                }
+                else if(packet.contains(IpV6Packet.class)){
+                    IpV6Packet.IpV6Header ipV6Header = packet.get(IpV6Packet.class).getHeader();
+                    System.out.println(handle.getTimestamp() + " Type " + ethernetHeader.getType() + " "
+                            + ipV6Header.getSrcAddr() + " > "
+                            + ipV6Header.getDstAddr() + " : "
+                            + ipV6Header.getProtocol() + " length: "
+                            + packet.length()
+                    );
+                }
+                else if(packet.contains(ArpPacket.class)){
+                    ArpPacket.ArpHeader arpHeader = packet.get(ArpPacket.class).getHeader();
+                    System.out.println(handle.getTimestamp() + " Type " + ethernetHeader.getType() + " "
+                            + arpHeader.getSrcHardwareAddr() + " > "
+                            + arpHeader.getDstHardwareAddr() + " : "
+                            + arpHeader.getOperation() + " length: "
+                            + packet.length()
+                    );
+                }
             }
 
             if(paketFull){
@@ -172,12 +196,15 @@ public class SnifferFinal implements Callable<Integer> {
         // Tell the handle to loop using the listener or dumper
         try {
             int maxPackets = (count == null) ? -1 : Integer.parseInt(count);
+            // Executor service because of multiple conditions in gotPacket method
+            ExecutorService pool = Executors.newCachedThreadPool();
             if ((!output && !paketFull && write && dumper != null)) {
                 logger.logInfo("Starting dumper loop.");
                 handle.loop(maxPackets, dumper);
             } else {
                 logger.logInfo("Starting listener loop.");
-                handle.loop(maxPackets, listener);
+                handle.loop(maxPackets, listener, pool);
+                pool.shutdown();
             }
 
         } catch (InterruptedException e) {
